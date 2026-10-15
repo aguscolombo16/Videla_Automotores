@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Videra Automotores</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="top"><div class="logo">Logo Videra Automotores</div><a id="waTop" target="_blank" rel="noopener">Escribinos</a></div>
+  <div class="hero"><h1>Encontrá tu próximo auto</h1><p>Mirá las fotos de cada vehículo y consultanos directo por WhatsApp.</p></div>
+</header>
+<div class="barra">
+  <div class="filtros" id="filtros" role="group" aria-label="Filtrar por marca"></div>
+  <p class="cuenta" id="cuenta"></p>
+</div>
+<main><div class="grid" id="grid"></div></main>
+<footer><b>Videra Automotores</b> &middot; WhatsApp 2604 620360</footer>
+
+<div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Detalle del vehículo">
+  <div class="caja">
+    <div class="visor">
+      <button class="cerrar" id="cerrar" aria-label="Cerrar">&times;</button>
+      <img id="foto" alt="">
+      <button class="nav ant" id="ant" aria-label="Foto anterior">&#8249;</button>
+      <button class="nav sig" id="sig" aria-label="Foto siguiente">&#8250;</button>
+      <span class="pos" id="pos"></span>
+    </div>
+    <div class="minis" id="minis"></div>
+    <div class="info">
+      <h2 id="titulo"></h2>
+      <dl id="datos"></dl>
+      <a class="wa" id="wa" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24"><path d="M12.04 2a9.9 9.9 0 0 0-8.4 15.1L2 22l5.05-1.6A9.9 9.9 0 1 0 12.04 2Zm5.8 14.1c-.25.7-1.45 1.35-2 1.4-.52.05-1 .25-3.4-.7-2.9-1.15-4.75-4.1-4.9-4.3-.14-.2-1.15-1.55-1.15-2.95s.73-2.1 1-2.4c.25-.28.55-.35.75-.35h.55c.18 0 .42-.07.65.5l.9 2.2c.08.17.12.37.02.57l-.3.45-.4.5c-.14.15-.3.3-.13.6.17.3.75 1.25 1.6 2 1.1 1 2 1.3 2.3 1.45.3.15.47.12.65-.07.18-.2.75-.87.95-1.17.2-.3.4-.25.67-.15l2.1 1c.28.14.47.2.53.32.07.12.07.7-.18 1.4Z"/></svg>
+        Contactar por WhatsApp
+      </a>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============ CONFIGURACIÓN ============ */
+const WHATSAPP = "5492604620360"; // 2604 620360 (código de país + 9 para celular)
+
+/* Marca, modelo y versiones disponibles para generar el catálogo de ejemplo */
+const BASE = [
+  ["Toyota","Corolla",["XLI","XEI","SEG"]],["Toyota","Hilux",["DX","SRV","SRX"]],
+  ["Volkswagen","Gol Trend",["Trendline","Highline"]],["Volkswagen","Amarok",["Trendline","Highline"]],
+  ["Volkswagen","Vento",["Comfortline","Highline"]],["Ford","Focus",["SE","Titanium"]],
+  ["Ford","Ranger",["XL","XLS","Limited"]],["Ford","EcoSport",["SE","Titanium"]],
+  ["Chevrolet","Cruze",["LT","LTZ"]],["Chevrolet","Onix",["LT","Premier"]],
+  ["Chevrolet","S10",["LS","LTZ","High Country"]],["Renault","Sandero",["Life","Intens"]],
+  ["Renault","Duster",["Dynamique","Privilège"]],["Fiat","Cronos",["Drive","Precision"]],
+  ["Fiat","Argo",["Drive","HGT"]],["Peugeot","208",["Active","Allure","GT"]],
+  ["Peugeot","308",["Allure","Feline"]],["Citroën","C3",["Feel","Shine"]],
+  ["Nissan","Frontier",["S","SE","LE"]],["Honda","HR-V",["LX","EXL"]]
+];
+
+/* ============ DATOS (100 autos de ejemplo) ============ */
+/* Para cargar autos reales, reemplazá este bloque por tu propia lista con este formato:
+   {marca:"Toyota", modelo:"Corolla", version:"XLI", anio:2017, km:85000, patente:"AB123CD",
+    fotos:["fotos/corolla1.jpg","fotos/corolla2.jpg","fotos/corolla3.jpg","fotos/corolla4.jpg","fotos/corolla5.jpg"]} */
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const letra = () => String.fromCharCode(65 + Math.floor(rnd() * 26));
+const num = n => Array.from({length:n}, () => Math.floor(rnd() * 10)).join("");
+const AUTOS = Array.from({length:100}, (_, i) => {
+  const [marca, modelo, vers] = BASE[i % BASE.length];
+  const anio = 2012 + Math.floor(rnd() * 13);
+  const patente = anio >= 2016 ? letra()+letra()+num(3)+letra()+letra() : letra()+letra()+letra()+num(3);
+  return {marca, modelo, version: vers[Math.floor(rnd() * vers.length)], anio,
+    km: Math.round((2025 - anio) * (9000 + rnd() * 9000) / 1000) * 1000, patente};
+});
+
+/* Fotos de relleno (se usan solo si el auto no tiene "fotos") */
+function relleno(n) {
+  const h = 214 + n * 4;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="hsl(${h},30%,92%)"/><path d="M70 190l25-52c5-10 14-16 25-16h160c11 0 20 6 25 16l25 52v28H70z" fill="hsl(${h},45%,45%)"/><circle cx="120" cy="222" r="22" fill="hsl(${h},20%,12%)"/><circle cx="280" cy="222" r="22" fill="hsl(${h},20%,12%)"/><text x="200" y="272" font-family="Arial" font-size="15" fill="hsl(${h},25%,35%)" text-anchor="middle">Foto ${n} de 5</text></svg>`;
+  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+}
+const fotosDe = a => a.fotos && a.fotos.length ? a.fotos : [1,2,3,4,5].map(relleno);
+const km = n => n.toLocaleString("es-AR") + " km";
+
+/* ============ FILTRO POR MARCA ============ */
+const $ = id => document.getElementById(id);
+const marcas = [...new Set(AUTOS.map(a => a.marca))].sort();
+let marcaActiva = "Todas";
+
+function pintarFiltros() {
+  $("filtros").innerHTML = ["Todas", ...marcas].map(m =>
+    `<button class="${m === marcaActiva ? "on" : ""}" data-m="${m}">${m}</button>`).join("");
+}
+function pintarGrid() {
+  const lista = AUTOS.map((a, i) => ({a, i})).filter(({a}) => marcaActiva === "Todas" || a.marca === marcaActiva);
+  $("cuenta").textContent = lista.length + (lista.length === 1 ? " vehículo" : " vehículos");
+  $("grid").innerHTML = lista.map(({a, i}) => `
+    <button class="card" data-i="${i}">
+      <span class="foto"><img src="${fotosDe(a)[0]}" alt="${a.marca} ${a.modelo} ${a.version}" loading="lazy"></span>
+      <span class="txt"><span class="nom">${a.marca} ${a.modelo} ${a.version}</span>
+        <span class="fila"><span class="anio">${a.anio}</span><span class="patente">${a.patente}</span></span></span>
+    </button>`).join("");
+}
+$("filtros").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  marcaActiva = b.dataset.m; pintarFiltros(); pintarGrid();
+});
+
+/* ============ VISOR DE FOTOS ============ */
+let actual = null, fotoIdx = 0, ultimoFoco = null;
+function verFoto() {
+  const a = AUTOS[actual], f = fotosDe(a);
+  $("foto").src = f[fotoIdx];
+  $("foto").alt = `${a.marca} ${a.modelo} - foto ${fotoIdx + 1}`;
+  $("pos").textContent = `${fotoIdx + 1} / ${f.length}`;
+  $("minis").innerHTML = f.map((src, k) => `<button data-n="${k}" aria-label="Ver foto ${k + 1}" class="${k === fotoIdx ? "on" : ""}"><img src="${src}" alt=""></button>`).join("");
+}
+function mover(d) { const n = fotosDe(AUTOS[actual]).length; fotoIdx = (fotoIdx + d + n) % n; verFoto(); }
+function abrir(i) {
+  const a = AUTOS[i]; actual = i; fotoIdx = 0; ultimoFoco = document.activeElement;
+  $("titulo").textContent = `${a.marca} ${a.modelo} ${a.version}`;
+  $("datos").innerHTML = `<dt>Marca</dt><dd>${a.marca}</dd><dt>Año</dt><dd>${a.anio}</dd>
+    <dt>Modelo</dt><dd>${a.modelo}</dd><dt>Versión</dt><dd>${a.version}</dd><dt>Kilómetros</dt><dd>${km(a.km)}</dd>`;
+  const msg = `Hola, me interesa el ${a.marca} ${a.modelo} ${a.version} ${a.anio} (patente ${a.patente}) que vi en la web de Videra Automotores.`;
+  $("wa").href = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`;
+  verFoto(); $("modal").classList.add("abierto"); $("cerrar").focus();
+}
+function cerrar() { $("modal").classList.remove("abierto"); if (ultimoFoco) ultimoFoco.focus(); }
+
+$("grid").addEventListener("click", e => { const c = e.target.closest(".card"); if (c) abrir(+c.dataset.i); });
+$("ant").onclick = () => mover(-1);
+$("sig").onclick = () => mover(1);
+$("cerrar").onclick = cerrar;
+$("minis").addEventListener("click", e => { const b = e.target.closest("button"); if (b) { fotoIdx = +b.dataset.n; verFoto(); } });
+$("modal").addEventListener("click", e => { if (e.target.id === "modal") cerrar(); });
+document.addEventListener("keydown", e => {
+  if (!$("modal").classList.contains("abierto")) return;
+  if (e.key === "Escape") cerrar();
+  if (e.key === "ArrowLeft") mover(-1);
+  if (e.key === "ArrowRight") mover(1);
+});
+
+pintarFiltros(); pintarGrid();
+$("waTop").href = `https://wa.me/${WHATSAPP}`;
+</script>
+</body>
+</html>
