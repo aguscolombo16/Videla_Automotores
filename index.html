@@ -9,7 +9,7 @@
 <body>
 <header>
   <div class="top"><div class="logo">Logo Videra Automotores</div><a id="waTop" target="_blank" rel="noopener">Escribinos</a></div>
-  <div class="hero"><h1>Encontrá tu próximo auto</h1><p>Mirá las fotos de cada vehículo y consultanos directo por WhatsApp.</p></div>
+  <div class="hero"><h1>Encontrá tu próximo auto en Videla Automotores</h1><p>Mirá las fotos de cada vehículo y consultanos directo por WhatsApp.</p></div>
 </header>
 <div class="barra">
   <div class="filtros" id="filtros" role="group" aria-label="Filtrar por marca"></div>
@@ -42,6 +42,9 @@
 <script>
 /* ============ CONFIGURACIÓN ============ */
 const WHATSAPP = "5492604620360"; // 2604 620360 (código de país + 9 para celular)
+const CARPETA = "image";                       // carpeta donde van las fotos
+const FOTOS_POR_AUTO = 3;                     // cuántas fotos tiene cada auto (poné 5 si cargás 5)
+const EXTENSIONES = ["webp","jpg","jpeg","png"]; // extensiones que se prueban, en este orden
 
 /* Marca, modelo y versiones disponibles para generar el catálogo de ejemplo */
 const BASE = [
@@ -57,28 +60,40 @@ const BASE = [
   ["Nissan","Frontier",["S","SE","LE"]],["Honda","HR-V",["LX","EXL"]]
 ];
 
-/* ============ DATOS (100 autos de ejemplo) ============ */
-/* Para cargar autos reales, reemplazá este bloque por tu propia lista con este formato:
-   {marca:"Toyota", modelo:"Corolla", version:"XLI", anio:2017, km:85000, patente:"AB123CD",
-    fotos:["fotos/corolla1.jpg","fotos/corolla2.jpg","fotos/corolla3.jpg","fotos/corolla4.jpg","fotos/corolla5.jpg"]} */
-let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-const letra = () => String.fromCharCode(65 + Math.floor(rnd() * 26));
-const num = n => Array.from({length:n}, () => Math.floor(rnd() * 10)).join("");
-const AUTOS = Array.from({length:100}, (_, i) => {
-  const [marca, modelo, vers] = BASE[i % BASE.length];
-  const anio = 2012 + Math.floor(rnd() * 13);
-  const patente = anio >= 2016 ? letra()+letra()+num(3)+letra()+letra() : letra()+letra()+letra()+num(3);
-  return {marca, modelo, version: vers[Math.floor(rnd() * vers.length)], anio,
-    km: Math.round((2025 - anio) * (9000 + rnd() * 9000) / 1000) * 1000, patente};
-});
-
+const AUTOS = [
+  {marca:"Toyota", modelo:"Hilux",     version:"DX",                  anio:2017, km:160000, patente:"AB342GZ"},
+  {marca:"Chevrolet", modelo:"Onix",     version:"JOY",                  anio:2013, km:120000, patente:"NPR958"},
+  {marca:"Citroën",   modelo:"Berlingo", version:"HDI Multispace XTR",   anio:2017, km:98000,  patente:"AB862JU"},
+  {marca:"Renault",   modelo:"Oroch", version:"Outsider",   anio:2024, km:35000,  patente:"AH533RR"},
+  {marca:"Toyota",   modelo:"Etios", version:"XLS Pack",   anio:2020, km:98000,  patente:"AE172XR"},
+  {marca:"Chevrolet",   modelo:"Cruze", version:"LTZ",   anio:2022, km:78000,  patente:"AF233EE"},
+  {marca:"Toyota",   modelo:"Corolla", version:"XLI CVT",   anio:2023, km:30800,  patente:"AG331EV"},
+  {marca:"Toyota",   modelo:"Corolla Cross", version:"SEG HEV",   anio:2022, km:85000,  patente:"AF390EJ"},
+  {marca:"Toyota",   modelo:"Hilux", version:"SRX",   anio:2021, km:90000,  patente:"AF337FP"},
+  {marca:"Volkswagen",   modelo:"Amarok", version:"V6 highline",   anio:2023, km:56000,  patente:"AG869VC"},
+];
 /* Fotos de relleno (se usan solo si el auto no tiene "fotos") */
 function relleno(n) {
   const h = 214 + n * 4;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="hsl(${h},30%,92%)"/><path d="M70 190l25-52c5-10 14-16 25-16h160c11 0 20 6 25 16l25 52v28H70z" fill="hsl(${h},45%,45%)"/><circle cx="120" cy="222" r="22" fill="hsl(${h},20%,12%)"/><circle cx="280" cy="222" r="22" fill="hsl(${h},20%,12%)"/><text x="200" y="272" font-family="Arial" font-size="15" fill="hsl(${h},25%,35%)" text-anchor="middle">Foto ${n} de 5</text></svg>`;
   return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
 }
-const fotosDe = a => a.fotos && a.fotos.length ? a.fotos : [1,2,3,4,5].map(relleno);
+/* FOTOS AUTOMÁTICAS: cada auto es el número de su posición en la lista (1, 2, 3...).
+   Ponés las fotos en la carpeta image así:  photo1-1.webp, photo1-2.webp, photo1-3.webp  (auto 1)
+                                           photo2-1.webp, photo2-2.webp, photo2-3.webp  (auto 2)  y así.
+   Si una foto es .jpeg, .jpg o .png no hace falta cambiar nada: la página prueba las extensiones sola.
+   Si falta una foto, se muestra una de relleno. (Opcional: un auto puede llevar fotos:[...] escritas a mano.) */
+AUTOS.forEach((a, i) => a.id = a.id || i + 1);
+const fotosDe = a => a.fotos && a.fotos.length ? a.fotos
+  : Array.from({length: FOTOS_POR_AUTO}, (_, k) => `${CARPETA}/photo${a.id}-${k + 1}.${EXTENSIONES[0]}`);
+document.addEventListener("error", e => {
+  const im = e.target;
+  if (im.tagName !== "IMG" || im.src.startsWith("data:")) return;
+  const m = im.src.match(/photo\d+-(\d+)\.([a-z0-9]+)(\?.*)?$/i);
+  const sig = m ? EXTENSIONES[EXTENSIONES.indexOf(m[2].toLowerCase()) + 1] : null;
+  if (m && sig) im.src = im.src.replace(/\.[a-z0-9]+(\?.*)?$/i, "." + sig);
+  else im.src = relleno(m ? +m[1] : 1);
+}, true);
 const km = n => n.toLocaleString("es-AR") + " km";
 
 /* ============ FILTRO POR MARCA ============ */
@@ -109,6 +124,7 @@ $("filtros").addEventListener("click", e => {
 let actual = null, fotoIdx = 0, ultimoFoco = null;
 function verFoto() {
   const a = AUTOS[actual], f = fotosDe(a);
+  delete $("foto").dataset.f;
   $("foto").src = f[fotoIdx];
   $("foto").alt = `${a.marca} ${a.modelo} - foto ${fotoIdx + 1}`;
   $("pos").textContent = `${fotoIdx + 1} / ${f.length}`;
@@ -120,7 +136,7 @@ function abrir(i) {
   $("titulo").textContent = `${a.marca} ${a.modelo} ${a.version}`;
   $("datos").innerHTML = `<dt>Marca</dt><dd>${a.marca}</dd><dt>Año</dt><dd>${a.anio}</dd>
     <dt>Modelo</dt><dd>${a.modelo}</dd><dt>Versión</dt><dd>${a.version}</dd><dt>Kilómetros</dt><dd>${km(a.km)}</dd>`;
-  const msg = `Hola, me interesa el ${a.marca} ${a.modelo} ${a.version} ${a.anio} (patente ${a.patente}) que vi en la web de Videra Automotores.`;
+  const msg = `Hola, me interesa el ${a.marca} ${a.modelo} ${a.version} ${a.anio} (patente ${a.patente}) que vi en la web de Videla Automotores.`;
   $("wa").href = `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`;
   verFoto(); $("modal").classList.add("abierto"); $("cerrar").focus();
 }
