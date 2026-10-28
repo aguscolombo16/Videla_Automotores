@@ -95,10 +95,12 @@ document.addEventListener("error", e => {
   else im.src = relleno(m ? +m[1] : 1);
 }, true);
 const km = n => n.toLocaleString("es-AR") + " km";
+/* Fotos subidas desde el panel (Cloudinary): se piden más livianas */
+const opt = (u, w) => u.includes("res.cloudinary.com") ? u.replace("/upload/", `/upload/f_auto,q_auto,w_${w}/`) : u;
 
 /* ============ FILTRO POR MARCA ============ */
 const $ = id => document.getElementById(id);
-const marcas = [...new Set(AUTOS.map(a => a.marca))].sort();
+let marcas = [...new Set(AUTOS.map(a => a.marca))].sort();
 let marcaActiva = "Todas";
 
 function pintarFiltros() {
@@ -110,7 +112,7 @@ function pintarGrid() {
   $("cuenta").textContent = lista.length + (lista.length === 1 ? " vehículo" : " vehículos");
   $("grid").innerHTML = lista.map(({a, i}) => `
     <button class="card" data-i="${i}">
-      <span class="foto"><img src="${fotosDe(a)[0]}" alt="${a.marca} ${a.modelo} ${a.version}" loading="lazy"></span>
+      <span class="foto"><img src="${opt(fotosDe(a)[0], 600)}" alt="${a.marca} ${a.modelo} ${a.version}" loading="lazy"></span>
       <span class="txt"><span class="nom">${a.marca} ${a.modelo} ${a.version}</span>
         <span class="fila"><span class="anio">${a.anio}</span><span class="patente">${a.patente}</span></span></span>
     </button>`).join("");
@@ -125,10 +127,10 @@ let actual = null, fotoIdx = 0, ultimoFoco = null;
 function verFoto() {
   const a = AUTOS[actual], f = fotosDe(a);
   delete $("foto").dataset.f;
-  $("foto").src = f[fotoIdx];
+  $("foto").src = opt(f[fotoIdx], 1100);
   $("foto").alt = `${a.marca} ${a.modelo} - foto ${fotoIdx + 1}`;
   $("pos").textContent = `${fotoIdx + 1} / ${f.length}`;
-  $("minis").innerHTML = f.map((src, k) => `<button data-n="${k}" aria-label="Ver foto ${k + 1}" class="${k === fotoIdx ? "on" : ""}"><img src="${src}" alt=""></button>`).join("");
+  $("minis").innerHTML = f.map((src, k) => `<button data-n="${k}" aria-label="Ver foto ${k + 1}" class="${k === fotoIdx ? "on" : ""}"><img src="${opt(src, 200)}" alt=""></button>`).join("");
 }
 function mover(d) { const n = fotosDe(AUTOS[actual]).length; fotoIdx = (fotoIdx + d + n) % n; verFoto(); }
 function abrir(i) {
@@ -155,8 +157,24 @@ document.addEventListener("keydown", e => {
   if (e.key === "ArrowRight") mover(1);
 });
 
+/* ============ AUTOS CARGADOS DESDE EL PANEL ============ */
+/* La llama cloud.js al leer la base de datos. Los vendidos no se muestran.
+   Si un auto de la base tiene la misma patente que uno escrito acá arriba, manda el de la base. */
+function agregarRemotos(lista) {
+  const nuevos = lista.filter(r => !r.vendido)
+    .sort((x, y) => ((y.creado && y.creado.seconds) || 0) - ((x.creado && x.creado.seconds) || 0))
+    .map(r => ({...r, fotos: r.fotos || []}));
+  const pats = new Set(nuevos.map(r => (r.patente || "").toUpperCase()));
+  const viejos = AUTOS.filter(a => !pats.has((a.patente || "").toUpperCase()));
+  AUTOS.splice(0, AUTOS.length, ...nuevos, ...viejos);
+  marcas = [...new Set(AUTOS.map(a => a.marca))].sort();
+  if (marcaActiva !== "Todas" && !marcas.includes(marcaActiva)) marcaActiva = "Todas";
+  pintarFiltros(); pintarGrid();
+}
+
 pintarFiltros(); pintarGrid();
 $("waTop").href = `https://wa.me/${WHATSAPP}`;
 </script>
+<script type="module" src="cloud.js"></script>
 </body>
 </html>

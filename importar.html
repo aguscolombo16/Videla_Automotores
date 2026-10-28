@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Importar autos viejos</title>
+<style>
+body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:#F3F5F9;color:#0b0b0b;margin:0;padding:16px}
+.box{max-width:640px;margin:20px auto;background:#fff;border:1px solid #E4E6EA;border-radius:14px;padding:18px}
+button{font:600 16px inherit;font-family:inherit;border:0;border-radius:10px;padding:13px 16px;width:100%;margin-top:12px;color:#fff;background:#1457e0;cursor:pointer}
+button.go{background:#0EA855}
+button:disabled{opacity:.5}
+pre{background:#0b1220;color:#d1e0ff;border-radius:10px;padding:12px;font-size:12.5px;max-height:340px;overflow:auto;white-space:pre-wrap;margin-top:14px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="box">
+  <h2 style="margin-top:0">Importar autos viejos</h2>
+  <p>Copia los autos que estaban escritos en <code>index.html</code> a la base de datos, con sus fotos de la carpeta <code>image</code>, para que aparezcan en el panel. Si un auto ya fue importado, se saltea.</p>
+  <button id="login">Ingresar con Google</button>
+  <button class="go" id="run" hidden>Importar <span id="total"></span> autos</button>
+  <pre id="log" hidden></pre>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, Timestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+import { firebaseConfig, ADMIN_EMAILS } from "./firebase-config.js";
+
+const LEGACY = [{"n": 1, "marca": "Toyota", "modelo": "Hilux", "version": "DX", "anio": 2017, "km": 160000, "patente": "AB342GZ"}, {"n": 2, "marca": "Chevrolet", "modelo": "Onix", "version": "JOY", "anio": 2013, "km": 120000, "patente": "NPR958"}, {"n": 3, "marca": "Citroën", "modelo": "Berlingo", "version": "HDI Multispace XTR", "anio": 2017, "km": 98000, "patente": "AB862JU"}, {"n": 4, "marca": "Renault", "modelo": "Oroch", "version": "Outsider", "anio": 2024, "km": 35000, "patente": "AH533RR"}, {"n": 5, "marca": "Toyota", "modelo": "Etios", "version": "XLS Pack", "anio": 2020, "km": 98000, "patente": "AE172XR"}, {"n": 6, "marca": "Chevrolet", "modelo": "Cruze", "version": "LTZ", "anio": 2022, "km": 78000, "patente": "AF233EE"}, {"n": 7, "marca": "Toyota", "modelo": "Corolla", "version": "XLI CVT", "anio": 2023, "km": 30800, "patente": "AG331EV"}, {"n": 8, "marca": "Toyota", "modelo": "Corolla Cross", "version": "SEG HEV", "anio": 2022, "km": 85000, "patente": "AF390EJ"}, {"n": 9, "marca": "Toyota", "modelo": "Hilux", "version": "SRX", "anio": 2021, "km": 90000, "patente": "AF337FP"}, {"n": 10, "marca": "Volkswagen", "modelo": "Amarok", "version": "V6 highline", "anio": 2023, "km": 56000, "patente": "AG869VC"}];
+const EXT = ["webp", "jpg", "jpeg", "png"];
+const $ = id => document.getElementById(id);
+const log = t => { $("log").hidden = false; $("log").textContent += t + "\n"; $("log").scrollTop = 1e9; };
+$("total").textContent = LEGACY.length;
+
+const auth = getAuth(initializeApp(firebaseConfig));
+const db = getFirestore(auth.app);
+const isAdmin = u => u && ADMIN_EMAILS.map(e => e.toLowerCase()).includes((u.email || "").toLowerCase());
+
+$("login").onclick = () => signInWithPopup(auth, new GoogleAuthProvider()).catch(e => log("Error: " + (e.code || e.message)));
+onAuthStateChanged(auth, u => {
+  if (u && !isAdmin(u)) { log(u.email + " no tiene permiso."); return; }
+  $("login").hidden = !!u; $("run").hidden = !u;
+});
+
+const exists = url => new Promise(r => { const i = new Image(); i.onload = () => r(true); i.onerror = () => r(false); i.src = url; });
+
+$("run").onclick = async () => {
+  $("run").disabled = true;
+  let ok = 0, skip = 0, sinFoto = 0;
+  const t0 = Date.UTC(2026, 0, 1), N = LEGACY.length;
+  for (let i = 0; i < N; i++) {
+    const v = LEGACY[i];
+    const id = "legacy-" + String(v.n).padStart(3, "0");
+    const ref = doc(db, "videla_autos", id);
+    try {
+      if ((await getDoc(ref)).exists()) { skip++; log(`= ${v.marca} ${v.modelo}: ya estaba`); continue; }
+      const fotos = [];
+      for (let k = 1; k <= 3; k++) {
+        for (const ext of EXT) {
+          const url = `image/photo${v.n}-${k}.${ext}`;
+          if (await exists(url)) { fotos.push(url); break; }
+        }
+      }
+      if (!fotos.length) sinFoto++;
+      const { n, ...rest } = v;
+      await setDoc(ref, { ...rest, fotos, vendido: false, creado: Timestamp.fromMillis(t0 + (N - i) * 1000) });
+      ok++;
+      log(`+ ${v.marca} ${v.modelo} ${v.anio} (${fotos.length} fotos)`);
+    } catch (e) {
+      log(`! ${v.marca} ${v.modelo}: ${e.code || e.message}`);
+    }
+  }
+  log(`\nListo. Importados: ${ok}. Ya existían: ${skip}. Sin fotos: ${sinFoto}.`);
+  $("run").disabled = false;
+};
+</script>
+</body>
+</html>
